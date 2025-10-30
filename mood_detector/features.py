@@ -3,19 +3,41 @@ import numpy as np
 from typing import Dict, List, Tuple
 
 
-def extract_tempo(y: np.ndarray, sr: int) -> float:
-    """Extract tempo (BPM) from audio signal."""
-    tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-    return float(tempo)
+def extract_tempo(y: np.ndarray, sr: int) -> tuple:
+    """Extract tempo (BPM) and confidence from audio signal."""
+    try:
+        # Use onset detection for better ambient/drone handling
+        onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+        tempo, beats = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
+
+        # Calculate confidence based on beat strength variance
+        # Low variance = likely not rhythmic (ambient/drone)
+        beat_strength_variance = float(np.var(onset_env))
+
+        # If very low variance, it's probably ambient (no clear beats)
+        if beat_strength_variance < 0.01:
+            # Return a safe "ambient" tempo
+            return 60.0, beat_strength_variance
+
+        return float(tempo), beat_strength_variance
+    except:
+        # Fallback if beat detection fails
+        return 60.0, 0.0
 
 
 def extract_energy(y: np.ndarray) -> float:
     """Extract energy level from audio signal (normalized 0-1)."""
     # Calculate root mean square (RMS) energy
     rms = librosa.feature.rms(y=y)[0]
-    # Normalize to 0-1 range
-    energy = float(np.mean(rms))
-    # Clip to ensure it's in valid range
+    # Get mean RMS (typically 0.0-0.3 range for music)
+    mean_rms = float(np.mean(rms))
+
+    # Scale to 0-1 range
+    # Most music falls in 0.05-0.3 RMS range
+    # Scale by 2.5x to spread it to ~0.125-0.75 range
+    energy = mean_rms * 2.5
+
+    # Clip to ensure it's in valid 0-1 range
     return min(max(energy, 0.0), 1.0)
 
 
@@ -53,12 +75,32 @@ def extract_chroma(y: np.ndarray, sr: int, n_chroma: int = 12) -> List[float]:
 
 def extract_features(audio_path: str) -> Dict:
     """Extract all relevant features from an audio file."""
-    # Load the audio file
-    y, sr = librosa.load(audio_path, duration=30)  # Limit to first 30 seconds
-    
+    # Get total duration first
+    total_duration = librosa.get_duration(path=audio_path)
+
+    # Load from middle of track (skip intro, get the "meat")
+    # For tracks longer than 60 seconds, start at 30 seconds in
+    # For shorter tracks, start at 25% through
+    if total_duration > 60:
+        offset = 30.0
+        duration = 15.0  # Analyze 15 seconds from the middle
+    elif total_duration > 30:
+        offset = total_duration * 0.25
+        duration = min(15.0, total_duration - offset)
+    else:
+        offset = 0
+        duration = min(15.0, total_duration)
+
+    # Load the audio file from calculated offset
+    y, sr = librosa.load(audio_path, offset=offset, duration=duration)
+
+    # Extract tempo and confidence
+    tempo, tempo_confidence = extract_tempo(y, sr)
+
     # Extract various features
     features = {
-        'tempo': extract_tempo(y, sr),
+        'tempo': tempo,
+        'tempo_confidence': tempo_confidence,
         'energy': extract_energy(y),
         'spectral_centroid': extract_spectral_centroid(y, sr),
         'spectral_rolloff': extract_spectral_rolloff(y, sr),
@@ -66,7 +108,7 @@ def extract_features(audio_path: str) -> Dict:
         'mfccs': extract_mfccs(y, sr),
         'chroma': extract_chroma(y, sr),
         'sample_rate': sr,
-        'duration': librosa.get_duration(y=y, sr=sr)
+        'duration': total_duration
     }
-    
+
     return features

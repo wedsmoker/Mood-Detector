@@ -137,17 +137,22 @@ The algorithm detects these mood categories based on tempo, energy, and spectral
 - Disco/Funk, Club/Groovy
 - Techno/Dark, Techno/Industrial
 - Drum & Bass, Breakbeat/Fast
+- Energetic/Rave, Driving Electronic
 
 **Chill/Ambient:**
+- Ambient/Drone, Ambient/Atmospheric
+- Atmospheric Pad, Atmospheric/Textural
 - Downtempo/Dark, Downtempo/Relaxed
-- Chill/Bright, Chill/Groovy
-- Ambient/Atmospheric
-- Melancholic/Sad
+- Ambient/Chill, Melancholic/Sad
+
+**Experimental:**
+- Glitch/Experimental
+- Harsh Noise/Experimental
+- Noise/Experimental
 
 **High Energy:**
 - Hard/Aggressive
-- Energetic/Fast
-- Driving Electronic
+- Energetic/Rave
 
 Plus tempo (BPM), energy level (0-1), musical key, and brightness characteristics.
 
