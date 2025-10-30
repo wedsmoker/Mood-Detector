@@ -244,9 +244,6 @@ MIT - Use it however you want
 
 ## 💡 Credits
 
-Built by [wedsmoker](https://github.com/wedsmoker) - Detroit, MI
-Self-taught dev, 4 months in, building in public.
-
 Uses:
 - [librosa](https://librosa.org/) - Audio analysis
 - [FastAPI](https://fastapi.tiangolo.com/) - REST API
