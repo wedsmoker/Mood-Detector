@@ -23,30 +23,34 @@ def classify_mood(features: Dict) -> MoodResult:
     zero_crossing_rate = features['zero_crossing_rate']
 
     # Advanced mood classification algorithm with spectral features
-    mood = detect_mood(energy, tempo, tempo_confidence, features['chroma'], spectral_centroid, zero_crossing_rate)
+    # detect_mood may adjust tempo for half-tempo detection, so we capture both
+    mood, corrected_tempo = detect_mood(energy, tempo, tempo_confidence, features['chroma'], spectral_centroid, zero_crossing_rate)
     key = determine_key(features['chroma'])
 
-    # Generate similarity scores for related moods
-    similarity_scores = calculate_similarity_scores(energy, tempo, spectral_centroid)
+    # Generate similarity scores for related moods (use corrected tempo)
+    similarity_scores = calculate_similarity_scores(energy, corrected_tempo, spectral_centroid)
 
-    # Create explanation
-    explanation = generate_explanation(energy, tempo, spectral_centroid, key)
+    # Create explanation (use corrected tempo)
+    explanation = generate_explanation(energy, corrected_tempo, spectral_centroid, key)
 
     return MoodResult(
         mood=mood,
         energy=energy,
-        tempo=tempo,
+        tempo=corrected_tempo,  # Use corrected tempo
         key=key,
         similarity_scores=similarity_scores,
         explanation=explanation
     )
 
 
-def detect_mood(energy: float, tempo: float, tempo_confidence: float, chroma: List[float], spectral_centroid: float, zero_crossing_rate: float) -> str:
+def detect_mood(energy: float, tempo: float, tempo_confidence: float, chroma: List[float], spectral_centroid: float, zero_crossing_rate: float) -> tuple:
     """
     Advanced mood detection with DJ-relevant categories.
     Uses energy, tempo, brightness (spectral centroid), and timbre (zero crossing rate).
     Tempo confidence helps identify drones/ambient (which have unreliable tempo detection).
+
+    Returns:
+        tuple: (mood_string, corrected_tempo)
     """
 
     # Normalize spectral centroid to 0-1 range (typical range is 0-8000 Hz)
@@ -55,94 +59,120 @@ def detect_mood(energy: float, tempo: float, tempo_confidence: float, chroma: Li
     # Determine if major or minor key (affects mood)
     is_major = determine_major_minor(chroma)
 
+    # === HALF-TEMPO DETECTION ===
+    # Fast electronic music (techno, DnB, etc.) is often detected at half-tempo
+    # If tempo is 80-145 BPM with very high energy (>0.8), it's likely half-tempo
+    # Double the tempo for more accurate genre classification
+    if 80 <= tempo <= 145 and energy > 0.8:
+        tempo = tempo * 2.0
+
     # === DRONES/AMBIENT (Very low tempo confidence = no clear beat) ===
     # Binaural beats, sine waves, drones have unreliable tempo detection
-    if tempo_confidence < 0.1:
+    # Increased threshold from 0.1 to 0.2 for better detection
+    if tempo_confidence < 0.2:
         if energy < 0.15:
-            return "Ambient/Drone"
-        elif energy < 0.25:
-            return "Atmospheric/Textural"
+            return ("Ambient/Drone", tempo)
+        elif energy < 0.30:
+            return ("Atmospheric/Textural", tempo)
+        elif energy < 0.50:
+            return ("Atmospheric/Textural", tempo)  # Medium energy drones
+        elif energy < 0.70:
+            # High energy but no beat = droning noise
+            return ("Atmospheric/Textural" if brightness < 0.3 else "Noise/Experimental", tempo)
         else:
-            return "Noise/Experimental"
+            return ("Harsh Noise/Experimental", tempo)
 
     # === EXPERIMENTAL/NOISE (High zero-crossing rate = lots of high-freq noise/chaos) ===
     # Catches glitchy experimental tracks
-    if zero_crossing_rate > 0.15:
+    # Increased threshold from 0.15 to 0.25 to avoid false positives with normal music
+    # Most regular music has ZCR between 0.08-0.22
+    if zero_crossing_rate > 0.25:
         if energy > 0.3:
-            return "Harsh Noise/Experimental"
+            return ("Harsh Noise/Experimental", tempo)
         else:
-            return "Glitch/Experimental"
+            return ("Glitch/Experimental", tempo)
+
+    # === TECHNO/ELECTRONIC (120-145 BPM, high energy) ===
+    # Check techno before club/dance to prioritize high-energy tracks
+    # Lowered energy threshold from 0.35 to 0.30 for better techno detection
+    if 120 <= tempo <= 145 and energy >= 0.50:
+        if brightness < 0.4:
+            return ("Techno/Dark", tempo)
+        else:
+            return ("Techno/Industrial", tempo)
+
+    # === CLUB/DANCE MUSIC (100-130 BPM, moderate-high energy) ===
+    # Lowered energy threshold from 0.3 to 0.15 to catch more house music
+    # Extended tempo range from 110-130 to 100-130 to include disco tracks
+    if 100 <= tempo <= 130 and energy >= 0.15:
+        # Very high energy (>0.7) in this tempo range = energetic techno/house
+        if energy > 0.7:
+            if 115 <= tempo <= 130:
+                return ("Techno/Industrial" if brightness > 0.5 else "Techno/Dark", tempo)
+            else:
+                return ("Energetic/Rave", tempo)
+        # Disco typically 100-115 BPM with moderate energy
+        elif 100 <= tempo <= 115 and energy < 0.5:
+            return ("Disco/Funk", tempo)
+        elif brightness > 0.5:
+            return ("House/Dance" if is_major else "Dark House", tempo)
+        elif brightness > 0.4:
+            return ("Disco/Funk", tempo)
+        else:
+            return ("Club/Groovy", tempo)
+
+    # === DRUM & BASS / FAST (148-180 BPM) ===
+    # Lowered min BPM from 160 to 148 to catch half-tempo detection issues
+    if 148 <= tempo <= 180:
+        if energy > 0.4:
+            return ("Drum & Bass", tempo)
+        elif energy > 0.25:
+            return ("Breakbeat/Fast", tempo)
+        else:
+            return ("Fast/Atmospheric", tempo)
+
+    # === HIGH ENERGY RAVE/HARD (> 180 BPM or very high energy) ===
+    # Changed tempo threshold from 145 to 180 to avoid conflicts with DnB
+    # Increased energy threshold from 0.5 to 0.7 to avoid catching normal loud tracks
+    if tempo > 180 or energy > 0.7:
+        if energy > 0.8:
+            return ("Hard/Aggressive", tempo)
+        elif energy > 0.6:
+            return ("Energetic/Rave", tempo)
+        else:
+            return ("Driving Electronic", tempo)
 
     # === AMBIENT/ATMOSPHERIC (Very low energy) ===
+    # This section handles tracks that didn't match dance/electronic categories above
     if energy < 0.2:
         if tempo < 70:
             if energy < 0.1:
-                return "Ambient/Atmospheric"
+                return ("Ambient/Atmospheric", tempo)
             elif not is_major:
-                return "Melancholic/Sad"
+                return ("Melancholic/Sad", tempo)
             else:
-                return "Downtempo/Relaxed"
+                return ("Downtempo/Relaxed", tempo)
         elif 70 <= tempo < 100:
             if energy < 0.1 and brightness < 0.4:
-                return "Downtempo/Dark"
+                return ("Downtempo/Dark", tempo)
             elif energy < 0.12:
-                return "Ambient/Chill"
+                return ("Ambient/Chill", tempo)
             else:
-                return "Midtempo Groove"
-        elif tempo < 130:
-            # Moderate tempo but very low energy = probably drone/pad, not club
-            if energy < 0.12:
-                return "Atmospheric Pad"
-            else:
-                return "Minimal/Sparse"
+                return ("Midtempo Groove", tempo)
         else:
-            # High tempo but low energy = experimental/glitch
-            return "Experimental/Glitch"
-
-    # === CLUB/DANCE MUSIC (110-130 BPM, moderate-high energy) ===
-    if 110 <= tempo <= 130 and energy >= 0.3:
-        if brightness > 0.5:
-            return "House/Dance" if is_major else "Dark House"
-        elif brightness > 0.4:
-            return "Disco/Funk"
-        else:
-            return "Club/Groovy"
-
-    # === TECHNO/ELECTRONIC (120-145 BPM, high energy) ===
-    if 120 <= tempo <= 145 and energy >= 0.35:
-        if brightness < 0.4:
-            return "Techno/Dark"
-        else:
-            return "Techno/Industrial"
-
-    # === DRUM & BASS / FAST (160-180 BPM) ===
-    if 160 <= tempo <= 180:
-        if energy > 0.4:
-            return "Drum & Bass"
-        elif energy > 0.25:
-            return "Breakbeat/Fast"
-        else:
-            return "Fast/Atmospheric"
-
-    # === HIGH ENERGY RAVE/HARD (> 145 BPM or very high energy) ===
-    if tempo > 145 or energy > 0.5:
-        if energy > 0.6:
-            return "Hard/Aggressive"
-        elif energy > 0.4:
-            return "Energetic/Rave"
-        else:
-            return "Driving Electronic"
+            # High tempo (>100 BPM) but low energy - minimal electronic
+            return ("Minimal/Sparse", tempo)
 
     # === MODERATE ENERGY (Fallback) ===
     if energy >= 0.25:
         if tempo > 100:
-            return "Upbeat/Moderate"
+            return ("Upbeat/Moderate", tempo)
         else:
-            return "Moderate Groove"
+            return ("Moderate Groove", tempo)
     elif energy >= 0.15:
-        return "Relaxed/Moderate"
+        return ("Relaxed/Moderate", tempo)
     else:
-        return "Low Energy"
+        return ("Low Energy", tempo)
 
 
 def determine_major_minor(chroma_features: List[float]) -> bool:

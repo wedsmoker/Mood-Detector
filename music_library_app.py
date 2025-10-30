@@ -1,6 +1,6 @@
 """
 Simple Music Library Analyzer
-Uses the mood-detector API to analyze and filter your music collection
+Analyzes and filters your music collection using mood-detector
 """
 
 import tkinter as tk
@@ -9,11 +9,12 @@ import os
 import json
 import threading
 from pathlib import Path
-import requests
 from typing import List, Dict
 
+# Import mood_detector directly (no API needed!)
+from mood_detector import analyze_audio
+
 # Configuration
-API_URL = "http://localhost:8000"
 CACHE_FILE = "music_library_cache.json"
 AUDIO_EXTENSIONS = {'.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'}
 
@@ -224,15 +225,6 @@ class MusicLibraryApp:
             messagebox.showinfo("Already Analyzing", "Analysis already in progress!")
             return
 
-        # Check if API is running
-        try:
-            requests.get(f"{API_URL}/", timeout=2)
-        except requests.exceptions.RequestException:
-            messagebox.showerror("API Not Running",
-                "The mood-detector API is not running!\n\n"
-                "Start it with: python api/main.py")
-            return
-
         # Find files
         files = self.find_audio_files(self.current_folder)
         if not files:
@@ -260,32 +252,21 @@ class MusicLibraryApp:
                 analyzed += 1
                 continue
 
-            # Analyze with API
+            # Analyze directly with mood_detector (no API needed!)
             try:
-                with open(file, 'rb') as f:
-                    response = requests.post(
-                        f"{API_URL}/analyze",
-                        files={'file': (os.path.basename(file), f, 'audio/mpeg')},
-                        data={'detailed': 'true', 'similarity_search': 'false'},
-                        timeout=30
-                    )
+                result = analyze_audio(file, detailed=True)
 
-                if response.status_code == 200:
-                    result = response.json()
-
-                    # Add to library
-                    track = {
-                        'filename': os.path.basename(file),
-                        'path': file,
-                        'mood': result['mood'],
-                        'tempo': result['tempo'],
-                        'energy': result['energy'],
-                        'key': result['key'],
-                        'explanation': result['explanation']
-                    }
-                    self.library.append(track)
-                else:
-                    print(f"Failed to analyze {file}: {response.status_code}")
+                # Add to library
+                track = {
+                    'filename': os.path.basename(file),
+                    'path': file,
+                    'mood': result.mood,
+                    'tempo': result.tempo,
+                    'energy': result.energy,
+                    'key': result.key,
+                    'explanation': result.explanation
+                }
+                self.library.append(track)
 
             except Exception as e:
                 print(f"Error analyzing {file}: {e}")

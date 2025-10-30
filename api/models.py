@@ -1,15 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Dict, Optional
 
 
 class MoodAnalysisResponse(BaseModel):
     mood: str
+    tempo: float  # Swapped order to match README
     energy: float
-    tempo: float
     key: str
     explanation: str
-    duration: Optional[float] = None
-    similar_moods: Optional[Dict[str, float]] = None
+
+    # Optional fields (excluded from response if None)
+    model_config = ConfigDict(exclude_none=True)
 
 
 class MoodAnalysisRequest(BaseModel):

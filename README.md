@@ -20,7 +20,6 @@ Analyze audio files to detect mood, tempo, energy, key, and genre characteristic
 Analyze your entire music collection and filter by mood, tempo, energy, and key.
 
 ```bash
-# Make sure the API is running first (see below)
 python music_library_app.py
 ```
 
@@ -167,18 +166,20 @@ Plus tempo (BPM), energy level (0-1), musical key, and brightness characteristic
 ## 🔧 How It Works
 
 1. **Audio Feature Extraction** (librosa)
-   - Tempo detection via beat tracking
+   - Tempo detection via beat tracking with half-tempo correction
    - Energy via RMS (root mean square)
    - Brightness via spectral centroid
    - Key detection via chroma features
+   - Zero-crossing rate for noise detection
 
 2. **Rule-Based Classification**
-   - Combines tempo + energy + brightness
-   - Detects major/minor keys
+   - Combines tempo + energy + brightness + timbre
+   - Detects drones/ambient via tempo confidence analysis
+   - Handles major/minor keys for mood nuance
    - No neural networks needed
 
 3. **Fast & Lightweight**
-   - Analyzes first 30 seconds
+   - Analyzes 30 seconds from track middle (skips intros)
    - ~2 seconds per track
    - Pure signal processing
 
@@ -216,9 +217,9 @@ python music_library_app.py
 
 ## 🐛 Known Issues
 
-- **BPM Detection:** May be inaccurate for tracks with long ambient intros (only analyzes first 30 seconds)
-- **Genre Overlap:** Some tracks fit multiple categories
+- **Genre Overlap:** Some tracks fit multiple categories (by design - music is fluid!)
 - **Key Detection:** Works best with clear harmonic content
+- **Half-Tempo Detection:** Very high energy tracks (>0.8) automatically double BPM - may rarely misclassify
 
 Pull requests welcome to improve accuracy!
 
@@ -229,10 +230,10 @@ Pull requests welcome to improve accuracy!
 PRs welcome! See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 Areas that need work:
-- Improved tempo detection for tracks with intros
-- More genre categories
+- More genre categories (experimental/IDM subcategories, jazz, classical, etc.)
 - Better key detection algorithm
 - UI improvements for the music library app
+- Training data for ML-based classification (optional enhancement)
 
 ---
 

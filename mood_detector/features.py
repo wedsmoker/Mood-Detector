@@ -10,6 +10,9 @@ def extract_tempo(y: np.ndarray, sr: int) -> tuple:
         onset_env = librosa.onset.onset_strength(y=y, sr=sr)
         tempo, beats = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
 
+        # Convert tempo to scalar (librosa 0.11.0 returns array)
+        tempo = float(np.atleast_1d(tempo)[0])
+
         # Calculate confidence based on beat strength variance
         # Low variance = likely not rhythmic (ambient/drone)
         beat_strength_variance = float(np.var(onset_env))
@@ -19,9 +22,16 @@ def extract_tempo(y: np.ndarray, sr: int) -> tuple:
             # Return a safe "ambient" tempo
             return 60.0, beat_strength_variance
 
+        # Check for half-tempo detection (common issue with fast electronic music)
+        # If tempo is in the range where doubling would make more sense (80-140 BPM)
+        # and the track has characteristics of fast music, double it
+        # This will be refined later based on energy and other features
+        # For now, just return the detected tempo - we'll handle doubling in classification
+
         return float(tempo), beat_strength_variance
-    except:
+    except Exception as e:
         # Fallback if beat detection fails
+        print(f"Warning: Tempo detection failed: {e}")
         return 60.0, 0.0
 
 
@@ -79,17 +89,16 @@ def extract_features(audio_path: str) -> Dict:
     total_duration = librosa.get_duration(path=audio_path)
 
     # Load from middle of track (skip intro, get the "meat")
-    # For tracks longer than 60 seconds, start at 30 seconds in
-    # For shorter tracks, start at 25% through
+    # Use longer duration (30s) for better tempo detection accuracy
     if total_duration > 60:
         offset = 30.0
-        duration = 15.0  # Analyze 15 seconds from the middle
+        duration = 30.0  # Analyze 30 seconds from the middle (increased from 15s)
     elif total_duration > 30:
         offset = total_duration * 0.25
-        duration = min(15.0, total_duration - offset)
+        duration = min(30.0, total_duration - offset)
     else:
         offset = 0
-        duration = min(15.0, total_duration)
+        duration = min(30.0, total_duration)
 
     # Load the audio file from calculated offset
     y, sr = librosa.load(audio_path, offset=offset, duration=duration)

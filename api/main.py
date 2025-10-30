@@ -82,17 +82,15 @@ async def analyze_file(
             similarity_search=similarity_search
         )
         
-        # Prepare response
+        # Prepare response (order matches README example)
         response = MoodAnalysisResponse(
             mood=result.mood,
-            energy=result.energy,
             tempo=result.tempo,
+            energy=result.energy,
             key=result.key,
-            explanation=result.explanation,
-            duration=None,  # Will be added if detailed is True
-            similar_moods=result.similarity_scores if similarity_search else None
+            explanation=result.explanation
         )
-        
+
         return response
         
     except FileNotFoundError:
@@ -178,11 +176,10 @@ async def batch_analyze_files(
         for result in analysis_results:
             response = MoodAnalysisResponse(
                 mood=result.mood,
-                energy=result.energy,
                 tempo=result.tempo,
+                energy=result.energy,
                 key=result.key,
-                explanation=result.explanation,
-                similar_moods=result.similarity_scores if similarity_search else None
+                explanation=result.explanation
             )
             results.append(response)
         
