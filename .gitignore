@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Project specific
+music_library_cache.json
+*.mp3
+*.wav
+*.flac
+*.ogg
+*.m4a
+*.aac
+uploads/
+
+# Temp files
+*.tmp
+*.log
+.env
+
+# Model/data files (if you add ML later)
+*.pkl
+*.h5
+*.pth
