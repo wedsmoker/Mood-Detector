@@ -1,5 +1,11 @@
 # 🎵 Mood Detector
 
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Powered by librosa](https://img.shields.io/badge/powered%20by-librosa-orange.svg)](https://librosa.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
 **Open-source music mood analysis API.** The free alternative to proprietary music intelligence APIs.
 
 Analyze audio files to detect mood, tempo, energy, key, and genre characteristics—without sending data to third parties or paying per-request fees.
