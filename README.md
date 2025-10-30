@@ -247,4 +247,3 @@ MIT - Use it however you want
 Uses:
 - [librosa](https://librosa.org/) - Audio analysis
 - [FastAPI](https://fastapi.tiangolo.com/) - REST API
-- [scikit-learn](https://scikit-learn.org/) - Feature processing
